@@ -7,7 +7,7 @@ App Store Connect APIを操作するCLIツール。AWS CLIと同様のプロフ�
 ```bash
 go build -o asc .
 # または
-go install github.com/ideamans/apple-app-store-connect@latest
+go install github.com/ideamans/apple-app-store-connect-cli@latest
 ```
 
 ## セットアップ

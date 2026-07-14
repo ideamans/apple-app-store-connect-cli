@@ -10,7 +10,7 @@ import (
 
 	"github.com/golang-jwt/jwt/v5"
 
-	"github.com/ideamans/apple-app-store-connect/internal/config"
+	"github.com/ideamans/apple-app-store-connect-cli/internal/config"
 )
 
 // MaxTTL is the maximum token lifetime App Store Connect accepts.

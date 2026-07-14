@@ -10,8 +10,8 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/ideamans/apple-app-store-connect/internal/api"
-	"github.com/ideamans/apple-app-store-connect/internal/config"
+	"github.com/ideamans/apple-app-store-connect-cli/internal/api"
+	"github.com/ideamans/apple-app-store-connect-cli/internal/config"
 )
 
 var (

@@ -3,7 +3,7 @@ package main
 import (
 	"fmt"
 
-	"github.com/ideamans/apple-app-store-connect/cmd"
+	"github.com/ideamans/apple-app-store-connect-cli/cmd"
 )
 
 // Set by GoReleaser via -ldflags "-X main.version=... -X main.commit=... -X main.date=...".

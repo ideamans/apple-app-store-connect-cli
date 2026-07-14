@@ -7,7 +7,7 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/ideamans/apple-app-store-connect/internal/config"
+	"github.com/ideamans/apple-app-store-connect-cli/internal/config"
 )
 
 var profilesCmd = &cobra.Command{

@@ -1,4 +1,4 @@
-module github.com/ideamans/apple-app-store-connect
+module github.com/ideamans/apple-app-store-connect-cli
 
 go 1.26.5
 

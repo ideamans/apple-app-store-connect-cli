@@ -9,8 +9,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/ideamans/apple-app-store-connect/internal/auth"
-	"github.com/ideamans/apple-app-store-connect/internal/config"
+	"github.com/ideamans/apple-app-store-connect-cli/internal/auth"
+	"github.com/ideamans/apple-app-store-connect-cli/internal/config"
 )
 
 const BaseURL = "https://api.appstoreconnect.apple.com"
