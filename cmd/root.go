@@ -26,4 +26,5 @@ func Execute(version string) {
 
 func init() {
 	rootCmd.PersistentFlags().StringVar(&profileFlag, "profile", "", "profile name (env: ASC_PROFILE)")
+	rootCmd.PersistentFlags().BoolVar(&dryRun, "dry-run", false, "print mutating requests instead of sending them")
 }

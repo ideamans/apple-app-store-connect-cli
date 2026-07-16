@@ -3,6 +3,7 @@ package api
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -18,12 +19,15 @@ const BaseURL = "https://api.appstoreconnect.apple.com"
 type Client struct {
 	creds *config.Credentials
 	http  *http.Client
+	// DryRun, when true, makes mutating helpers (Post/Patch/Delete/Upload) print
+	// the intended request to stderr and skip it. Reads still execute.
+	DryRun bool
 }
 
 func New(creds *config.Credentials) *Client {
 	return &Client{
 		creds: creds,
-		http:  &http.Client{Timeout: 60 * time.Second},
+		http:  &http.Client{Timeout: 120 * time.Second},
 	}
 }
 
@@ -61,6 +65,20 @@ func (c *Client) Do(ctx context.Context, method, pathOrURL string, body io.Reade
 	return data, nil
 }
 
+// Error is an API error that carries the HTTP status code.
+type Error struct {
+	Status  int
+	Message string
+}
+
+func (e *Error) Error() string { return e.Message }
+
+// IsNotFound reports whether err is an API error with HTTP 404.
+func IsNotFound(err error) bool {
+	var e *Error
+	return errors.As(err, &e) && e.Status == http.StatusNotFound
+}
+
 func apiError(status int, body []byte) error {
 	var payload struct {
 		Errors []struct {
@@ -81,11 +99,11 @@ func apiError(status int, body []byte) error {
 			}
 			parts = append(parts, msg)
 		}
-		return fmt.Errorf("HTTP %d: %s", status, strings.Join(parts, "; "))
+		return &Error{Status: status, Message: fmt.Sprintf("HTTP %d: %s", status, strings.Join(parts, "; "))}
 	}
 	snippet := string(body)
 	if len(snippet) > 500 {
 		snippet = snippet[:500] + "..."
 	}
-	return fmt.Errorf("HTTP %d: %s", status, snippet)
+	return &Error{Status: status, Message: fmt.Sprintf("HTTP %d: %s", status, snippet)}
 }

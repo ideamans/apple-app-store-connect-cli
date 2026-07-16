@@ -5,9 +5,9 @@ App Store Connect APIを操作するCLIツール。AWS CLIと同様のプロフ�
 ## インストール
 
 ```bash
-go build -o asc .
+go build ./cmd/asc          # カレントに asc を出力
 # または
-go install github.com/ideamans/apple-app-store-connect-cli@latest
+go install github.com/ideamans/apple-app-store-connect-cli/cmd/asc@latest
 ```
 
 ## セットアップ
@@ -49,6 +49,47 @@ asc api -X POST /v1/betaGroups -d @payload.json
 # curl等で使うJWTを発行
 curl -H "Authorization: Bearer $(asc token)" https://api.appstoreconnect.apple.com/v1/apps
 ```
+
+## 審査提出フロー用コマンド
+
+メタデータ入力から審査提出までの主要操作を、`asc api` を内部で叩く薄いラッパとして提供します。`--app` はアプリID・Bundle IDのどちらでも指定できます。書き込み系はすべて `--dry-run` で実リクエストをプレビューできます（送信せず標準エラーへ出力）。
+
+```bash
+# App情報（名前・サブタイトル・プライバシーURL / カテゴリ / 年齢レーティング）
+asc appinfo show --app <APP>
+asc appinfo localize --app <APP> --locale ja --name "..." --subtitle "..." --privacy-url https://...
+asc appinfo category --app <APP> --primary PRODUCTIVITY --secondary BUSINESS
+asc appinfo age-rating --app <APP> --attrs @agerating.json
+
+# バージョン（作成 / ローカライズ / ビルド選択）
+asc version list --app <APP>
+asc version create --app <APP> --version 1.0
+asc version localize --app <APP> --locale ja --description @desc.txt --keywords "領収書,レシート,Excel"
+asc version set-build --app <APP> --build 42          # ビルドはXcode/Transporterでアップロード済みが前提
+
+# スクリーンショット（reserve→バイトPUT→commit を一括実行。asc api では不可能な処理）
+asc assets upload-screenshot --app <APP> --locale ja --display APP_IPHONE_67 \
+  --file 01.png --file 02.png
+asc assets list --app <APP> --locale ja
+
+# App内課金（ローカライズ / 価格 / 審査スクショ / 提出）
+asc iap list --app <APP>
+asc iap localize --app <APP> --product <productId> --name "..." --description "..."
+asc iap price --app <APP> --product <productId> --territory JPN --price 150
+asc iap screenshot --app <APP> --product <productId> --file iap-review.png
+
+# App Review連絡先・メモ
+asc review-detail set --app <APP> --first 邦彦 --last 宮永 --email contact@example.com --notes @notes.txt
+
+# 審査へ提出（reviewSubmissions）
+asc submit --app <APP>                # --prepare-only で最終送信せずステージのみ
+```
+
+### APIでは操作できず人間が行う必要がある工程
+
+- **ビルド（.ipa）のアップロード**: App Store Connect APIに存在しません。Xcode / Transporter / `xcrun altool` で行い、`asc version set-build` で選択します。
+- **「Appのプライバシー」データ収集ラベル**: 公開APIに書き込み口がなく、Web UIで入力します。
+- **有料App契約・税・銀行情報（Paid Apps Agreement）**: Web UIで受諾します（未了だとIAPが有効になりません）。
 
 ## ヘルプ
 

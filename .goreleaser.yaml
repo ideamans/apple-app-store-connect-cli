@@ -10,7 +10,7 @@ before:
 
 builds:
   - id: asc
-    main: .
+    main: ./cmd/asc
     binary: asc
     env:
       - CGO_ENABLED=0

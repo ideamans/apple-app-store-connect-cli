@@ -13,8 +13,8 @@ import (
 var tokenTTL time.Duration
 
 var tokenCmd = &cobra.Command{
-	Use:   "token",
-	Short: "Print a signed JWT for use with curl etc.",
+	Use:     "token",
+	Short:   "Print a signed JWT for use with curl etc.",
 	Example: `  curl -H "Authorization: Bearer $(asc token)" https://api.appstoreconnect.apple.com/v1/apps`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		creds, err := config.Resolve(profileFlag)
