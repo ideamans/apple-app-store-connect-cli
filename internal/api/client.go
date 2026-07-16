@@ -65,6 +65,45 @@ func (c *Client) Do(ctx context.Context, method, pathOrURL string, body io.Reade
 	return data, nil
 }
 
+// Download performs a GET and returns the raw response body, for endpoints
+// that do not speak JSON:API (gzipped sales/finance reports, CSV code files,
+// certificate content, analytics segment URLs). accept, when non-empty, is
+// sent as the Accept header. pathOrURL may be an API path or an absolute URL;
+// the bearer token is only attached for the API host.
+func (c *Client) Download(ctx context.Context, pathOrURL, accept string) ([]byte, error) {
+	url := pathOrURL
+	if strings.HasPrefix(pathOrURL, "/") {
+		url = BaseURL + pathOrURL
+	}
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+	if err != nil {
+		return nil, err
+	}
+	if strings.HasPrefix(url, BaseURL) {
+		token, err := auth.Token(c.creds, auth.DefaultTTL)
+		if err != nil {
+			return nil, err
+		}
+		req.Header.Set("Authorization", "Bearer "+token)
+	}
+	if accept != "" {
+		req.Header.Set("Accept", accept)
+	}
+	resp, err := c.http.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+	data, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+	if resp.StatusCode >= 300 {
+		return data, apiError(resp.StatusCode, data)
+	}
+	return data, nil
+}
+
 // Error is an API error that carries the HTTP status code.
 type Error struct {
 	Status  int

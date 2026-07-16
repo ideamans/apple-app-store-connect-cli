@@ -3,6 +3,7 @@ package cmd
 import (
 	"context"
 	"fmt"
+	"net/url"
 	"os"
 	"strings"
 
@@ -42,7 +43,7 @@ func resolveAppID(ctx context.Context, c *api.Client, appRef string) (string, er
 	if isDigits(appRef) {
 		return appRef, nil
 	}
-	apps, err := c.List(ctx, "/v1/apps?filter[bundleId]="+appRef+"&limit=1")
+	apps, err := c.List(ctx, "/v1/apps?filter[bundleId]="+url.QueryEscape(appRef)+"&limit=1")
 	if err != nil {
 		return "", err
 	}

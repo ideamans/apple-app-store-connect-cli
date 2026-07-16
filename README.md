@@ -85,11 +85,47 @@ asc review-detail set --app <APP> --first 邦彦 --last 宮永 --email contact@e
 asc submit --app <APP>                # --prepare-only で最終送信せずステージのみ
 ```
 
+## 全コマンド一覧（APIドメイン別）
+
+App Store Connect API（OpenAPI 4.4.1）の全ドメインを専用サブコマンドでカバーしています。書き込み系はすべて `--dry-run` 対応。詳細は `asc <command> --help` / `asc --llm` を参照。
+
+| コマンド | 対応ドメイン |
+|---------|-------------|
+| `apps` | アプリ一覧・詳細・更新（primaryLocale、コンテンツ権利） |
+| `appinfo` | App情報（名前・サブタイトル・カテゴリ・年齢レーティング） |
+| `version` | バージョン（作成・更新・削除・ローカライズ・ビルド選択・リリース要求・段階的リリース） |
+| `assets` | スクリーンショット / プレビュー動画 / ルーティングカバレッジのアップロード・管理 |
+| `review-detail` | 審査連絡先・デモアカウント・メモ・添付ファイル |
+| `submit` / `review-submissions` | 審査提出、提出の一覧・キャンセル・アイテム管理 |
+| `pricing` / `availability` / `territories` | アプリ価格スケジュール・価格ポイント・配信地域・予約注文終了 |
+| `iap` | App内課金（作成・削除・ローカライズ・価格・配信可否・プロモ画像・オファーコード・審査提出） |
+| `subscriptions` | サブスクリプション（グループ・価格・イントロ/プロモオファー・オファーコード・配信可否・グレースピリオド・プロモート表示・審査提出） |
+| `beta` / `sandbox` | TestFlight（ベータグループ・テスター・ローカライズ・ベータ審査・ライセンス・自動募集条件・App Clip起動・ビルド詳細）、サンドボックステスター |
+| `builds` | ビルド（一覧・失効・暗号化フラグ・テスター通知・**IPAアップロード**） |
+| `background-assets` | Background Assets（アセットパックの作成・バージョン・アップロード） |
+| `users` / `invitations` | チームユーザー・招待 |
+| `certificates` / `bundle-ids` / `devices` / `provisioning-profiles` / `pass-type-ids` / `merchant-ids` | 署名・プロビジョニング一式 |
+| `reports` / `analytics` | セールス・ファイナンスレポート、アナリティクスレポートの要求とダウンロード |
+| `reviews` | カスタマーレビューと開発者返信 |
+| `metrics` / `diagnostics` / `feedback` | パフォーマンス・電力メトリクス、診断ログ、TestFlightフィードバック |
+| `events` | In-App Event（作成・スケジュール・ローカライズ・画像/動画） |
+| `product-pages` / `experiments` | カスタム製品ページ、製品ページ最適化（A/Bテスト） |
+| `nominations` / `eula` | フィーチャリングノミネーション、カスタムEULA |
+| `gamecenter` | Game Center（実績・リーダーボード・セット・グループ） |
+| `appclips` | App Clip（体験・ローカライズ・ヘッダー画像・審査情報） |
+| `xcode-cloud` | Xcode Cloud（プロダクト・ワークフロー・ビルド実行・アーティファクト） |
+| `webhooks` | Webhook（作成・配信履歴・ping） |
+| `encryption` / `accessibility` | 輸出コンプライアンス（暗号化申告）、アクセシビリティ宣言 |
+| `alt-distribution` / `marketplace` / `app-tags` / `actors` / `android-mapping` | EU代替配布・マーケットプレイス・Appタグ・操作主体の参照・Android→iOS対応付け |
+
+専用コマンド化していない枝葉（win-backオファー作成、App Clip advanced experience作成など、公開スペックが不完全なもの）は `asc api` で直接呼び出せます。全実装はOpenAPIスペック4.4.1と突き合わせてレビュー済みで、deprecatedエンドポイントは使用していません（Apple側に代替がないmarketplace webhookを除く）。
+
 ### APIでは操作できず人間が行う必要がある工程
 
-- **ビルド（.ipa）のアップロード**: App Store Connect APIに存在しません。Xcode / Transporter / `xcrun altool` で行い、`asc version set-build` で選択します。
 - **「Appのプライバシー」データ収集ラベル**: 公開APIに書き込み口がなく、Web UIで入力します。
 - **有料App契約・税・銀行情報（Paid Apps Agreement）**: Web UIで受諾します（未了だとIAPが有効になりません）。
+
+※ ビルド（.ipa）のアップロードはAPI 4.xの `buildUploads` に対応した `asc builds upload` で可能になりました（従来どおりXcode / Transporterも利用可）。
 
 ## ヘルプ
 
