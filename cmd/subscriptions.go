@@ -53,6 +53,7 @@ var (
 	subsAvailNew      bool
 	subsAvailPlanType string
 	subsFile          string
+	subsAutoFit       bool
 	subsOptIn         bool
 	subsSandboxOptIn  bool
 	subsRenewalType   string
@@ -924,7 +925,7 @@ the remaining territories from that price point). FREE_TRIAL needs no --price.`,
 		if err != nil {
 			return err
 		}
-		const lid = "price-1"
+		const lid = "${price1}"
 		priceRels := map[string]json.RawMessage{"territory": api.Rel("territories", subsTerr)}
 		if mode != "FREE_TRIAL" {
 			if !cmd.Flags().Changed("price") {
@@ -1063,7 +1064,7 @@ remaining territories from that price point). FREE_TRIAL needs no --price.`,
 			}
 			custElig = append(custElig, u)
 		}
-		const lid = "price-1"
+		const lid = "${price1}"
 		priceRels := map[string]json.RawMessage{"territory": api.Rel("territories", subsTerr)}
 		if mode != "FREE_TRIAL" {
 			if !cmd.Flags().Changed("price") {
@@ -1338,8 +1339,13 @@ var subsAvailSetCmd = &cobra.Command{
 var subsScreenshotCmd = &cobra.Command{
 	Use:   "screenshot",
 	Short: "Upload the review screenshot for a subscription",
+	Long: `Upload the App Review screenshot for a subscription. Like IAP review
+screenshots, the validator only accepts legacy sizes (1242×2208, 2208×1242,
+2048×2732, 2732×2048) — current App Store screenshot sizes are rejected
+asynchronously. Dimensions are validated before uploading; pass --auto-fit to
+scale and pad automatically.`,
 	Example: `  asc subscriptions screenshot --app com.example.app --sub com.example.app.pro.monthly \
-    --file app-store/sub-review.png`,
+    --file app-store/sub-review.png --auto-fit`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		c, err := newClient()
 		if err != nil {
@@ -1354,13 +1360,16 @@ var subsScreenshotCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
-		id, err := uploadAsset(ctx, c, assetSpec{
+		data, fileName, err := prepareReviewScreenshot(subsFile, subsAutoFit)
+		if err != nil {
+			return err
+		}
+		id, err := uploadAssetBytes(ctx, c, assetSpec{
 			reserveType: "subscriptionAppStoreReviewScreenshots",
 			relName:     "subscription",
 			relType:     "subscriptions",
 			relID:       sub.ID,
-			filePath:    subsFile,
-		})
+		}, data, fileName)
 		if err != nil {
 			return err
 		}
@@ -1827,6 +1836,7 @@ func init() {
 
 	// screenshot
 	subsScreenshotCmd.Flags().StringVar(&subsFile, "file", "", "review screenshot file (required)")
+	subsScreenshotCmd.Flags().BoolVar(&subsAutoFit, "auto-fit", false, "scale and pad the image to an accepted review-screenshot size (keeps aspect ratio, white padding)")
 	_ = subsScreenshotCmd.MarkFlagRequired("file")
 
 	// grace period

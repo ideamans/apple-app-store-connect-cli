@@ -25,7 +25,11 @@ var configureCmd = &cobra.Command{
 (with 0600 permissions) and registers a profile in config.toml.
 
 The key ID is derived from the AuthKey_XXXXXXXXXX.p8 filename unless --key-id
-is given. The first registered profile becomes the default profile.`,
+is given. The first registered profile becomes the default profile.
+
+Use an App Store Connect API key WITH A ROLE (Users and Access > Integrations >
+App Store Connect API; Admin or App Manager for write access). In-App Purchase
+keys for the App Store Server API look similar but get 401 on this API.`,
 	Example: `  asc configure --issuer-id 12345678-aaaa-bbbb-cccc-1234567890ab --key ~/Downloads/AuthKey_ABC123DEF4.p8
   asc configure --profile client-a --issuer-id ... --key ... --key-id ABC123DEF4`,
 	RunE: func(cmd *cobra.Command, args []string) error {

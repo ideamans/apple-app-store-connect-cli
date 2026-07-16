@@ -102,6 +102,17 @@ var ipxCreateCmd = &cobra.Command{
 		default:
 			return fmt.Errorf("--type must be CONSUMABLE, NON_CONSUMABLE or NON_RENEWING_SUBSCRIPTION")
 		}
+		// Find-or-create: IAPs often already exist (e.g. created for sandbox
+		// testing) and the API 409s on duplicate product ids.
+		existing, err := c.List(ctx, "/v1/apps/"+appID+"/inAppPurchasesV2?limit=200")
+		if err != nil {
+			return err
+		}
+		if cur := findByAttr(existing, "productId", ipxProductID); cur != nil {
+			fmt.Printf("IAP %s already exists (%s, state=%s); nothing to create.\n", ipxProductID, cur.ID, cur.Str("state"))
+			fmt.Println("Use iap localize/price/screenshot to complete its metadata.")
+			return nil
+		}
 		attrs := map[string]any{
 			"productId":         ipxProductID,
 			"name":              ipxName,
@@ -482,7 +493,7 @@ codes with "asc iap offer-codes create-codes".`,
 		if err != nil {
 			return err
 		}
-		const lid = "offer-price-1"
+		const lid = "${offerPrice1}"
 		pricesRel, _ := json.Marshal(map[string]any{"data": []map[string]string{{"type": "inAppPurchaseOfferPrices", "id": lid}}})
 		created, err := c.Post(ctx, "/v1/inAppPurchaseOfferCodes", api.Body{
 			Data: api.Resource{

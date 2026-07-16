@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"os"
 
 	"github.com/spf13/cobra"
 
@@ -45,6 +46,7 @@ the submission without finalizing.`,
 		if err != nil {
 			return err
 		}
+		warnMissingSubmissionItems(ctx, c, appID)
 		subID, err := openReviewSubmission(ctx, c, appID, subPlatform)
 		if err != nil {
 			return err
@@ -74,6 +76,20 @@ the submission without finalizing.`,
 		fmt.Println("Submitted for review.")
 		return nil
 	},
+}
+
+// warnMissingSubmissionItems checks required-but-easily-missed submission
+// items. Price and availability stay unset even when the version page looks
+// complete in the UI, and the App Privacy questionnaire has no API at all —
+// warn, but let the API be the final judge.
+func warnMissingSubmissionItems(ctx context.Context, c *api.Client, appID string) {
+	if sched, err := c.GetOptional(ctx, "/v1/apps/"+appID+"/appPriceSchedule"); err == nil && (sched == nil || sched.ID == "") {
+		fmt.Fprintln(os.Stderr, "warning: no price schedule set — required even for free apps (asc pricing set --app "+appID+" --free)")
+	}
+	if avail, err := c.GetOptional(ctx, "/v1/apps/"+appID+"/appAvailabilityV2"); err == nil && (avail == nil || avail.ID == "") {
+		fmt.Fprintln(os.Stderr, "warning: no territory availability set (asc availability set --app "+appID+" --territories ...)")
+	}
+	fmt.Fprintln(os.Stderr, "note: the App Privacy questionnaire has no public API — confirm it is published in the App Store Connect UI")
 }
 
 // openReviewSubmission returns an existing not-yet-submitted review submission

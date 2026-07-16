@@ -259,7 +259,7 @@ var gczActivitiesCreateCmd = &cobra.Command{
 		if cmd.Flags().Changed("supports-party-code") {
 			attrs["supportsPartyCode"] = gczSupportsPartyCode
 		}
-		const verLID = "act-ver-1"
+		const verLID = "${actVer1}"
 		created, err := c.Post(ctx, "/v1/gameCenterActivities", api.Body{
 			Data: api.Resource{
 				Type:       "gameCenterActivities",
@@ -460,7 +460,7 @@ var gczChallengesCreateCmd = &cobra.Command{
 		if cmd.Flags().Changed("repeatable") {
 			attrs["repeatable"] = gczRepeatable
 		}
-		const verLID = "chal-ver-1"
+		const verLID = "${chalVer1}"
 		rels := map[string]json.RawMessage{
 			"gameCenterDetail": api.Rel("gameCenterDetails", detailID),
 			"versions":         gcxToManyRel("gameCenterChallengeVersions", verLID),

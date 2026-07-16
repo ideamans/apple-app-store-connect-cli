@@ -65,7 +65,7 @@ asc appinfo age-rating --app <APP> --attrs @agerating.json
 asc version list --app <APP>
 asc version create --app <APP> --version 1.0
 asc version localize --app <APP> --locale ja --description @desc.txt --keywords "領収書,レシート,Excel"
-asc version set-build --app <APP> --build 42          # ビルドはXcode/Transporterでアップロード済みが前提
+asc version set-build --app <APP> --build 42          # ビルドはXcode/Transporterまたは asc builds upload でアップロード済みが前提
 
 # スクリーンショット（reserve→バイトPUT→commit を一括実行。asc api では不可能な処理）
 asc assets upload-screenshot --app <APP> --locale ja --display APP_IPHONE_67 \
@@ -76,7 +76,7 @@ asc assets list --app <APP> --locale ja
 asc iap list --app <APP>
 asc iap localize --app <APP> --product <productId> --name "..." --description "..."
 asc iap price --app <APP> --product <productId> --territory JPN --price 150
-asc iap screenshot --app <APP> --product <productId> --file iap-review.png
+asc iap screenshot --app <APP> --product <productId> --file iap-review.png --auto-fit  # 審査スクショはレガシーサイズのみ受理。--auto-fitで自動リサイズ
 
 # App Review連絡先・メモ
 asc review-detail set --app <APP> --first 邦彦 --last 宮永 --email contact@example.com --notes @notes.txt
@@ -99,7 +99,7 @@ App Store Connect API（OpenAPI 4.4.1）の全ドメインを専用サブコマ�
 | `submit` / `review-submissions` | 審査提出、提出の一覧・キャンセル・アイテム管理 |
 | `pricing` / `availability` / `territories` | アプリ価格スケジュール・価格ポイント・配信地域・予約注文終了 |
 | `iap` | App内課金（作成・削除・ローカライズ・価格・配信可否・プロモ画像・オファーコード・審査提出） |
-| `subscriptions` | サブスクリプション（グループ・価格・イントロ/プロモオファー・オファーコード・配信可否・グレースピリオド・プロモート表示・審査提出） |
+| `subscriptions` | サブスクリプション（グループ・価格・イントロ/プロモオファー・オファーコード・配信可否・グレースピリオド・プロモート表示・プロモ画像・ドラフト版・審査提出） |
 | `beta` / `sandbox` | TestFlight（ベータグループ・テスター・ローカライズ・ベータ審査・ライセンス・自動募集条件・App Clip起動・ビルド詳細）、サンドボックステスター |
 | `builds` | ビルド（一覧・失効・暗号化フラグ・テスター通知・**IPAアップロード**） |
 | `background-assets` | Background Assets（アセットパックの作成・バージョン・アップロード） |
@@ -111,7 +111,7 @@ App Store Connect API（OpenAPI 4.4.1）の全ドメインを専用サブコマ�
 | `events` | In-App Event（作成・スケジュール・ローカライズ・画像/動画） |
 | `product-pages` / `experiments` | カスタム製品ページ、製品ページ最適化（A/Bテスト） |
 | `nominations` / `eula` | フィーチャリングノミネーション、カスタムEULA |
-| `gamecenter` | Game Center（実績・リーダーボード・セット・グループ） |
+| `gamecenter` | Game Center（実績・リーダーボード・セット・グループ・アクティビティ・チャレンジ・マッチメイキング・バージョン単位の有効化・スコア/実績のサーバー投稿） |
 | `appclips` | App Clip（体験・ローカライズ・ヘッダー画像・審査情報） |
 | `xcode-cloud` | Xcode Cloud（プロダクト・ワークフロー・ビルド実行・アーティファクト） |
 | `webhooks` | Webhook（作成・配信履歴・ping） |
@@ -122,10 +122,21 @@ App Store Connect API（OpenAPI 4.4.1）の全ドメインを専用サブコマ�
 
 ### APIでは操作できず人間が行う必要がある工程
 
-- **「Appのプライバシー」データ収集ラベル**: 公開APIに書き込み口がなく、Web UIで入力します。
+- **「Appのプライバシー」データ収集ラベル**: 公開APIに存在しません（`dataUsages`系エンドポイントは404）。Web UIで入力します。参考: GA4/Firebase Analyticsの申告は「使用状況データ > 製品の操作 / 用途=分析 / 非紐付け / 非トラッキング」（「広告データ」ではない）。
 - **有料App契約・税・銀行情報（Paid Apps Agreement）**: Web UIで受諾します（未了だとIAPが有効になりません）。
+- **App Store Server Notifications V2のURL設定**: 設定エンドポイントがGUI専用（疎通はServer APIのTest Notificationで確認可能）。
+- **日本の特定商取引法に基づく表記**: ASCに専用欄はありません（App情報の「トレーダーステータス」はEU DSA向け）。日本のみ配信ならWebの特商法ページで対応します。
 
 ※ ビルド（.ipa）のアップロードはAPI 4.xの `buildUploads` に対応した `asc builds upload` で可能になりました（従来どおりXcode / Transporterも利用可）。
+
+### 実提出で判明した落とし穴への対策（組み込み済み）
+
+- **アセットの非同期検証**: commit 2xx後もAppleが非同期で検証し、寸法エラー等は後から`assetDeliveryState`に出ます。画像・動画アセットの全アップロードコマンドがCOMPLETE/FAILEDまでポーリングし、失敗時はエラーコード付きで非ゼロ終了します（ビルド・Background Assetsの処理状況は `builds list` / `background-assets versions` で確認）。
+- **IAP/サブスク審査スクショはレガシーサイズのみ受理**（1242×2208 / 2208×1242 / 2048×2732 / 2732×2048）。`iap screenshot`/`subscriptions screenshot`はアップロード前に寸法検証し、`--auto-fit`でアスペクト比維持リサイズ+白パディングを行えます。
+- **初回バージョンのwhatsNewは編集不可**（409）→ `version localize`は警告してスキップし他の属性を適用。
+- **`iap create`はfind-or-create**（Sandboxテスト用に作成済みでも409にならない）。
+- **配信地域は全テリトリー明示が必要** → `availability set`が約175テリトリーを自動展開（指定外はfalse）。
+- **無料アプリにも価格スケジュールが必要** → `pricing set --free`。`asc submit`は価格・配信地域の未設定を事前警告します。
 
 ## ヘルプ
 

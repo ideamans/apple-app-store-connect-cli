@@ -19,7 +19,12 @@ var assetsCmd = &cobra.Command{
 submission flow that "asc api" cannot do on its own: each asset is reserved
 (POST), its bytes are PUT to a per-asset pre-signed URL, then the upload is
 committed (PATCH uploaded=true with an MD5 checksum). These commands do all
-three steps.`,
+three steps.
+
+A 2xx commit does NOT mean the asset was accepted: Apple validates
+asynchronously and rejections (e.g. IMAGE_INCORRECT_DIMENSIONS) only appear in
+assetDeliveryState afterwards. These commands therefore poll until validation
+reaches COMPLETE and exit non-zero on FAILED with the error codes.`,
 }
 
 // assetSpec describes one asset upload target.
@@ -31,13 +36,20 @@ type assetSpec struct {
 	filePath    string
 }
 
-// uploadAsset runs reserve → upload → commit and returns the new asset id.
+// uploadAsset runs reserve → upload → commit → validation wait and returns the
+// new asset id.
 func uploadAsset(ctx context.Context, c *api.Client, spec assetSpec) (string, error) {
 	data, err := os.ReadFile(spec.filePath)
 	if err != nil {
 		return "", err
 	}
-	fileName := filepath.Base(spec.filePath)
+	return uploadAssetBytes(ctx, c, spec, data, filepath.Base(spec.filePath))
+}
+
+// uploadAssetBytes is uploadAsset for in-memory data (e.g. auto-fitted images).
+// After committing it waits for Apple's asynchronous validation: a 2xx commit
+// alone does not mean the asset was accepted (see waitAssetDelivery).
+func uploadAssetBytes(ctx context.Context, c *api.Client, spec assetSpec, data []byte, fileName string) (string, error) {
 	reserved, err := c.Post(ctx, "/v1/"+spec.reserveType, api.Body{
 		Data: api.Resource{
 			Type:          spec.reserveType,
@@ -70,6 +82,9 @@ func uploadAsset(ctx context.Context, c *api.Client, spec assetSpec) (string, er
 	})
 	if err != nil {
 		return "", err
+	}
+	if err := waitAssetDelivery(ctx, c, "/v1/"+spec.reserveType+"/"+reserved.ID); err != nil {
+		return "", fmt.Errorf("%s: %w", fileName, err)
 	}
 	return reserved.ID, nil
 }

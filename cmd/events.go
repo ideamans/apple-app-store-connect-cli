@@ -358,6 +358,9 @@ func evtUploadAsset(ctx context.Context, c *api.Client, resType, locID, assetTyp
 	if err != nil {
 		return "", err
 	}
+	if err := waitAssetDelivery(ctx, c, "/v1/"+resType+"/"+reserved.ID); err != nil {
+		return "", fmt.Errorf("%s: %w", fileName, err)
+	}
 	return reserved.ID, nil
 }
 

@@ -182,6 +182,10 @@ var appinfoAgeRatingCmd = &cobra.Command{
 questionnaire fields, this command takes the raw attributes object as JSON
 rather than hardcoding a preset.
 
+Note: with the newer age-rating flow the declaration may not be readable via
+the API (GETs can 404 even when the UI shows a rating). Writing still works;
+verify the resulting rating in the App Store Connect UI.
+
 Dump the current attributes, edit them (e.g. set every content field to "NONE"
 for a 4+ rating), and apply:
 

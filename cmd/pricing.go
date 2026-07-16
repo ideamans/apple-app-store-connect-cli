@@ -35,6 +35,7 @@ var (
 	prcAutomatic   bool
 	prcTerritories string
 	prcAvailNew    bool
+	prcFree        bool
 )
 
 // prcListInc fetches a collection and its included resources, following
@@ -226,13 +227,22 @@ var prcSetCmd = &cobra.Command{
 Store price point, then creating a price schedule. Apple derives every other
 territory's price from the base territory's price point. --price is the
 customer-facing price in the territory's currency (e.g. 300 for ¥300 with
---base-territory JPN). Without --start-date the price takes effect immediately.`,
-	Example: `  asc pricing set --app 6790641087 --price 0.99 --base-territory USA
+--base-territory JPN). Without --start-date the price takes effect immediately.
+
+Free apps also need a price schedule (a required submission item that is easy
+to miss): pass --free to resolve the customerPrice "0" price point.`,
+	Example: `  asc pricing set --app 6790641087 --free
   asc pricing set --app 6790641087 --price 300 --base-territory JPN --start-date 2026-08-01`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		c, err := newClient()
 		if err != nil {
 			return err
+		}
+		if prcFree {
+			prcPrice = "0"
+		}
+		if prcPrice == "" {
+			return fmt.Errorf("pass --price <amount> or --free")
 		}
 		ctx := cmd.Context()
 		appID, err := resolveAppID(ctx, c, prcApp)
@@ -247,7 +257,7 @@ customer-facing price in the territory's currency (e.g. 300 for ¥300 with
 		if prcStartDate != "" {
 			startDate = prcStartDate
 		}
-		const lid = "price-1"
+		const lid = "${price1}"
 		manual, _ := json.Marshal(map[string]any{"data": []map[string]string{{"type": "appPrices", "id": lid}}})
 		_, err = c.Post(ctx, "/v1/appPriceSchedules", api.Body{
 			Data: api.Resource{
@@ -372,8 +382,10 @@ var prcAvailSetCmd = &cobra.Command{
 	Use:   "set",
 	Short: "Set the territories where the app is available",
 	Long: `Replace the app's availability with the given territory list. Territories
-not listed become unavailable. Pass --available-in-new-territories to opt in to
-territories Apple adds in the future.`,
+not listed become unavailable. The API requires a territoryAvailability entry
+for EVERY App Store territory (~175), so the command fetches the full territory
+list and marks the ones you pass available and all others unavailable. Pass
+--available-in-new-territories to opt in to territories Apple adds later.`,
 	Example: `  asc availability set --app 6790641087 --territories JPN,USA,GBR
   asc availability set --app 6790641087 --territories JPN --available-in-new-territories`,
 	RunE: func(cmd *cobra.Command, args []string) error {
@@ -386,25 +398,44 @@ territories Apple adds in the future.`,
 		if err != nil {
 			return err
 		}
-		var terrs []string
+		wanted := map[string]bool{}
 		for _, t := range strings.Split(prcTerritories, ",") {
 			if t = strings.ToUpper(strings.TrimSpace(t)); t != "" {
-				terrs = append(terrs, t)
+				wanted[t] = true
 			}
 		}
-		if len(terrs) == 0 {
+		if len(wanted) == 0 {
 			return fmt.Errorf("--territories must list at least one territory code, e.g. JPN,USA")
 		}
-		refs := make([]map[string]string, 0, len(terrs))
-		included := make([]api.Resource, 0, len(terrs))
-		for i, t := range terrs {
-			lid := fmt.Sprintf("ta-%d", i+1)
+		// The API rejects partial lists ("expected included territoryAvailability
+		// for id 'SVN'..."), so every territory must be sent explicitly.
+		all, err := c.List(ctx, "/v1/territories?limit=200")
+		if err != nil {
+			return err
+		}
+		known := map[string]bool{}
+		for _, t := range all {
+			known[t.ID] = true
+		}
+		for t := range wanted {
+			if !known[t] {
+				return fmt.Errorf("unknown territory %q (see: asc territories)", t)
+			}
+		}
+		refs := make([]map[string]string, 0, len(all))
+		included := make([]api.Resource, 0, len(all))
+		available := 0
+		for i, t := range all {
+			lid := fmt.Sprintf("${ta%d}", i+1)
 			refs = append(refs, map[string]string{"type": "territoryAvailabilities", "id": lid})
+			if wanted[t.ID] {
+				available++
+			}
 			included = append(included, api.Resource{
 				Type:          "territoryAvailabilities",
 				ID:            lid,
-				Attributes:    map[string]any{"available": true},
-				Relationships: map[string]json.RawMessage{"territory": api.Rel("territories", t)},
+				Attributes:    map[string]any{"available": wanted[t.ID]},
+				Relationships: map[string]json.RawMessage{"territory": api.Rel("territories", t.ID)},
 			})
 		}
 		taRel, _ := json.Marshal(map[string]any{"data": refs})
@@ -422,7 +453,8 @@ territories Apple adds in the future.`,
 		if err != nil {
 			return err
 		}
-		fmt.Printf("App %s availability set: %d territories (availableInNewTerritories=%v).\n", appID, len(terrs), prcAvailNew)
+		fmt.Printf("App %s availability set: available in %d of %d territories (availableInNewTerritories=%v).\n",
+			appID, available, len(all), prcAvailNew)
 		return nil
 	},
 }
@@ -484,10 +516,10 @@ func init() {
 	}
 	prcShowCmd.Flags().BoolVar(&prcAutomatic, "automatic", false, "also list automatic (derived) prices for every territory")
 
-	prcSetCmd.Flags().StringVar(&prcPrice, "price", "", "customer price in the base territory currency, e.g. 0.99 or 300 (required)")
+	prcSetCmd.Flags().StringVar(&prcPrice, "price", "", "customer price in the base territory currency, e.g. 0.99 or 300")
+	prcSetCmd.Flags().BoolVar(&prcFree, "free", false, "make the app free (shorthand for --price 0)")
 	prcSetCmd.Flags().StringVar(&prcBaseTerr, "base-territory", "USA", "base territory code, e.g. USA, JPN")
 	prcSetCmd.Flags().StringVar(&prcStartDate, "start-date", "", "start date YYYY-MM-DD (default: effective immediately)")
-	_ = prcSetCmd.MarkFlagRequired("price")
 
 	prcPointsCmd.Flags().StringVar(&prcTerr, "territory", "JPN", "territory code, e.g. JPN, USA")
 	prcPointsCmd.Flags().IntVar(&prcLimit, "limit", 0, "maximum number of price points to print (default: all)")

@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"strings"
 	"text/tabwriter"
 
 	"github.com/spf13/cobra"
@@ -93,7 +94,11 @@ var versionLocalizeCmd = &cobra.Command{
 	Use:   "localize",
 	Short: "Set localized version metadata (description, keywords, what's new, URLs)",
 	Long: `Create or update the appStoreVersionLocalization for a locale on the app's
-editable version. Any flag may take @file to read the value from a file.`,
+editable version. Any flag may take @file to read the value from a file.
+
+On an app's FIRST version, whatsNew (release notes) is not editable — the API
+409s. This command skips whatsNew with a warning in that case and still applies
+the other attributes.`,
 	Example: `  asc version localize --app 6790641087 --locale ja \
     --description @app-store/description.txt \
     --keywords "領収書,レシート,経費,Excel,スキャン" \
@@ -141,19 +146,34 @@ editable version. Any flag may take @file to read the value from a file.`,
 		if err != nil {
 			return err
 		}
-		if existing := findByAttr(locs, "locale", verLocale); existing != nil {
-			_, err = c.Patch(ctx, "/v1/appStoreVersionLocalizations/"+existing.ID, api.Body{
-				Data: api.Resource{Type: "appStoreVersionLocalizations", ID: existing.ID, Attributes: attrs},
-			})
-		} else {
+		apply := func(attrs map[string]any) error {
+			if existing := findByAttr(locs, "locale", verLocale); existing != nil {
+				_, err := c.Patch(ctx, "/v1/appStoreVersionLocalizations/"+existing.ID, api.Body{
+					Data: api.Resource{Type: "appStoreVersionLocalizations", ID: existing.ID, Attributes: attrs},
+				})
+				return err
+			}
 			attrs["locale"] = verLocale
-			_, err = c.Post(ctx, "/v1/appStoreVersionLocalizations", api.Body{
+			_, err := c.Post(ctx, "/v1/appStoreVersionLocalizations", api.Body{
 				Data: api.Resource{
 					Type:          "appStoreVersionLocalizations",
 					Attributes:    attrs,
 					Relationships: map[string]json.RawMessage{"appStoreVersion": api.Rel("appStoreVersions", ver.ID)},
 				},
 			})
+			return err
+		}
+		err = apply(attrs)
+		// An app's first version has no previous release, so whatsNew is not
+		// editable and the API 409s. Retry without it rather than failing the
+		// other attributes.
+		if _, hadWhatsNew := attrs["whatsNew"]; err != nil && hadWhatsNew && strings.Contains(err.Error(), "whatsNew") {
+			fmt.Fprintln(os.Stderr, "warning: whatsNew is not editable on this version (first versions have no release notes); skipped it")
+			delete(attrs, "whatsNew")
+			if len(attrs) == 0 {
+				return nil
+			}
+			err = apply(attrs)
 		}
 		if err != nil {
 			return err

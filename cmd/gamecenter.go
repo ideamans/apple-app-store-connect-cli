@@ -134,6 +134,9 @@ func gcxUploadImage(ctx context.Context, c *api.Client, createPath, resType, rel
 	if err != nil {
 		return "", err
 	}
+	if err := waitAssetDelivery(ctx, c, createPath+"/"+reserved.ID); err != nil {
+		return "", fmt.Errorf("%s: %w", filepath.Base(filePath), err)
+	}
 	return reserved.ID, nil
 }
 
@@ -266,7 +269,7 @@ var gcxAchievementsCreateCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
-		const verLID = "ach-ver-1"
+		const verLID = "${achVer1}"
 		created, err := c.Post(ctx, "/v2/gameCenterAchievements", api.Body{
 			Data: api.Resource{
 				Type: "gameCenterAchievements",
@@ -505,7 +508,7 @@ var gcxLeaderboardsCreateCmd = &cobra.Command{
 		if cmd.Flags().Changed("score-range-end") {
 			attrs["scoreRangeEnd"] = gcxRangeEnd
 		}
-		const verLID = "lb-ver-1"
+		const verLID = "${lbVer1}"
 		created, err := c.Post(ctx, "/v2/gameCenterLeaderboards", api.Body{
 			Data: api.Resource{
 				Type:       "gameCenterLeaderboards",
@@ -723,7 +726,7 @@ var gcxLeaderboardSetsCreateCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
-		const verLID = "lbset-ver-1"
+		const verLID = "${lbsetVer1}"
 		created, err := c.Post(ctx, "/v2/gameCenterLeaderboardSets", api.Body{
 			Data: api.Resource{
 				Type: "gameCenterLeaderboardSets",

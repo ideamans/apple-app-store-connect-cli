@@ -14,7 +14,9 @@ import (
 	"github.com/ideamans/apple-app-store-connect-cli/internal/config"
 )
 
-const BaseURL = "https://api.appstoreconnect.apple.com"
+// BaseURL is the API origin. It is a variable so tests can point the client at
+// a local mock server.
+var BaseURL = "https://api.appstoreconnect.apple.com"
 
 type Client struct {
 	creds *config.Credentials
@@ -138,7 +140,11 @@ func apiError(status int, body []byte) error {
 			}
 			parts = append(parts, msg)
 		}
-		return &Error{Status: status, Message: fmt.Sprintf("HTTP %d: %s", status, strings.Join(parts, "; "))}
+		msg := fmt.Sprintf("HTTP %d: %s", status, strings.Join(parts, "; "))
+		if status == http.StatusUnauthorized {
+			msg += "\nHint: the management API needs an App Store Connect API key with a role (Admin/App Manager). In-App Purchase / App Store Server API keys from the same issuer get 401 here."
+		}
+		return &Error{Status: status, Message: msg}
 	}
 	snippet := string(body)
 	if len(snippet) > 500 {

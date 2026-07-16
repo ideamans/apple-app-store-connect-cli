@@ -28,6 +28,7 @@ var (
 	iapTerr    string
 	iapPrice   string
 	iapFile    string
+	iapAutoFit bool
 )
 
 // resolveIAP resolves a product id (numeric ASC id) or a productId string to the IAP resource.
@@ -185,7 +186,7 @@ point. --price is the customer-facing price in the territory's currency
 			}
 			return fmt.Errorf("no price point with customerPrice=%s in %s.%s", iapPrice, iapTerr, hint)
 		}
-		const lid = "price-1"
+		const lid = "${price1}"
 		manual, _ := json.Marshal(map[string]any{"data": []map[string]string{{"type": "inAppPurchasePrices", "id": lid}}})
 		_, err = c.Post(ctx, "/v1/inAppPurchasePriceSchedules", api.Body{
 			Data: api.Resource{
@@ -216,8 +217,17 @@ point. --price is the customer-facing price in the territory's currency
 var iapScreenshotCmd = &cobra.Command{
 	Use:   "screenshot",
 	Short: "Upload the review screenshot for an in-app purchase",
+	Long: `Upload the App Review screenshot for an in-app purchase.
+
+IMPORTANT: the IAP review-screenshot validator only accepts LEGACY device
+sizes — current App Store screenshot sizes (1290×2796, 1320×2868, 1284×2778,
+1170×2532, ...) are all rejected asynchronously with IMAGE_INCORRECT_DIMENSIONS.
+Known-accepted sizes: 1242×2208, 2208×1242, 2048×2732, 2732×2048. The command
+validates dimensions before uploading; pass --auto-fit to scale and pad the
+image to an accepted size automatically. After upload it waits for Apple's
+validation and reports the IAP state (READY_TO_SUBMIT when metadata is done).`,
 	Example: `  asc iap screenshot --app 6790641087 --product com.ideamans.JapanReceiptScan.credits100 \
-    --file app-store/iap-review.png`,
+    --file app-store/iap-review.png --auto-fit`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		c, err := newClient()
 		if err != nil {
@@ -232,17 +242,25 @@ var iapScreenshotCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
-		id, err := uploadAsset(ctx, c, assetSpec{
+		data, fileName, err := prepareReviewScreenshot(iapFile, iapAutoFit)
+		if err != nil {
+			return err
+		}
+		id, err := uploadAssetBytes(ctx, c, assetSpec{
 			reserveType: "inAppPurchaseAppStoreReviewScreenshots",
 			relName:     "inAppPurchaseV2",
 			relType:     "inAppPurchases",
 			relID:       iap.ID,
-			filePath:    iapFile,
-		})
+		}, data, fileName)
 		if err != nil {
 			return err
 		}
 		fmt.Printf("Uploaded IAP review screenshot -> %s\n", id)
+		if !c.DryRun {
+			if after, err := resolveIAP(ctx, c, appID, iapProduct); err == nil {
+				fmt.Printf("IAP state: %s\n", after.Str("state"))
+			}
+		}
 		return nil
 	},
 }
@@ -299,6 +317,7 @@ func init() {
 	_ = iapPriceCmd.MarkFlagRequired("price")
 
 	iapScreenshotCmd.Flags().StringVar(&iapFile, "file", "", "review screenshot file (required)")
+	iapScreenshotCmd.Flags().BoolVar(&iapAutoFit, "auto-fit", false, "scale and pad the image to an accepted review-screenshot size (keeps aspect ratio, white padding)")
 	_ = iapScreenshotCmd.MarkFlagRequired("file")
 
 	iapCmd.AddCommand(iapListCmd, iapLocalizeCmd, iapPriceCmd, iapScreenshotCmd, iapSubmitCmd)
