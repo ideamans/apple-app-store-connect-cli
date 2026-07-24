@@ -141,7 +141,31 @@ App Store Connect API（OpenAPI 4.4.1）の全ドメインを専用サブコマ�
 ## ヘルプ
 
 - `asc --help` / `asc <command> --help` — 人間向けの通常のヘルプ
-- `asc --llm` — LLMエージェント向けの詳細リファレンスを一括出力（クレデンシャルモデル、解決順序、全コマンド・フラグ、`asc api` のJSON:API/ページネーションの注意点まで含む）。どのサブコマンドに付けても同じ全文が出ます
+
+### AIエージェントから使う
+
+`asc llm` はAIエージェント向けの詳細リファレンスを一括出力します（クレデンシャルモデル、解決順序、**実提出で判明した落とし穴**、全コマンド・フラグ、`asc api` のJSON:API/ページネーションの注意点）。コマンドカタログはcobraのコマンド定義から生成されるため実装と乖離せず、バイナリに埋め込まれているのでオフラインでも実行中のバージョンと必ず一致します。
+
+```bash
+asc llm                  # Markdown（約5,700行。grepして使う想定）
+asc llm --format json    # 章ごとのJSON配列
+asc --llm                # 非推奨エイリアス。従来どおりどのサブコマンドに付けても動作します
+```
+
+Claude Code ではプラグインを導入すると `/asc-usage` と `/asc-install` が使えます。
+
+```
+/plugin marketplace add ideamans/claude-public-plugins
+/plugin install apple-app-store-connect-cli@ideamans-plugins
+```
+
+同じスキルは Copilot や Cursor など Agent Skills 対応ホストでも利用できます。
+
+```bash
+gh skill install ideamans/apple-app-store-connect-cli/plugins/apple-app-store-connect-cli/skills/asc-usage --agent copilot
+```
+
+スキル本体は [`plugins/apple-app-store-connect-cli/`](plugins/apple-app-store-connect-cli)、準拠している標準は [ideamans/go-llm-cli-kit](https://github.com/ideamans/go-llm-cli-kit) を参照してください。
 
 ## クレデンシャルの解決順序
 

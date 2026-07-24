@@ -1,0 +1,21 @@
+{
+  "$schema": "https://context7.com/schema/context7.json",
+  "projectTitle": "asc — Apple App Store Connect CLI",
+  "description": "A non-interactive CLI for the Apple App Store Connect API. Covers apps, versions, builds, TestFlight, in-app purchases and subscriptions, pricing, territory availability, screenshots and video assets, age ratings and App Store submission, plus a raw `asc api` escape hatch for the full JSON:API surface. Authenticates with an App Store Connect API key (issuer id, key id, .p8) and generates a fresh ES256 JWT per invocation. Built for scripts and AI agents: nothing prompts, and the complete reference is embedded in the binary behind `asc llm`.",
+  "folders": ["internal/llmdocs"],
+  "excludeFolders": ["plugins", ".github", "cmd"],
+  "excludeFiles": ["feedback.md"],
+  "rules": [
+    "Authentication needs an App Store Connect API key with a management role: issuer id (UUID), key id (10 chars) and the .p8 private key, registered with `asc configure` or supplied via ASC_ISSUER_ID plus ASC_PRIVATE_KEY_PATH or ASC_PRIVATE_KEY_BASE64. App Store Server API (In-App Purchase) keys from the same issuer return 401 against the management API — they are different keys.",
+    "The .p8 private key cannot be re-downloaded from Apple. Never print its contents, never pass it inline on a command line, and never move or delete the user's copy.",
+    "Asset uploads validate asynchronously. A 2xx on reserve/PUT/commit does NOT mean acceptance — failures such as IMAGE_INCORRECT_DIMENSIONS surface later in assetDeliveryState. Check the final state before reporting success.",
+    "IAP and subscription review screenshots accept only legacy sizes (1242x2208, 2208x1242, 2048x2732, 2732x2048). Current App Store screenshot sizes are rejected: the appScreenshots validator and the review-screenshot validator are different. `asc iap screenshot` offers --auto-fit to resize and pad.",
+    "App availability requires ALL territories explicitly — roughly 175 territoryAvailabilities in a single POST, each with available true or false. `Japan only` still needs every other territory marked false. `asc availability set` expands the list automatically.",
+    "Free apps still need a price schedule (a customerPrice 0 price point) via `asc pricing set --free`. Price and availability are required for submission but stay unset even when the version page looks complete.",
+    "whatsNew is not editable on an app's first version and returns 409. IAPs created for sandbox testing often already exist, so POST 409s on a duplicate productId — `asc iap create` is find-or-create.",
+    "Inline-created (`included`) resources need local ids in the form ${name}. A plain string id returns 409 ENTITY_ERROR.INCLUDED.INVALID_ID. This matters when composing raw `asc api` POSTs for appPriceSchedules, appAvailabilities or offer codes.",
+    "`asc api` follows JSON:API: paginate with a limit query parameter (max 200) and follow links.next until absent; quote the path in shells because filter[...] contains brackets. Prefer a dedicated asc command when one exists — those already handle the traps above.",
+    "Some things have no public API and cannot be automated: the App Privacy questionnaire (/v1/apps/{id}/dataUsages 404s), App Store Server Notifications URL configuration, and Japan's 特定商取引法 disclosure. Direct the user to the web UI instead of retrying.",
+    "The complete reference is embedded in the binary: `asc llm` (Markdown) or `asc llm --format json`. It is regenerated from the cobra command tree, so prefer it over any remembered command list. Use --dry-run before any mutating command."
+  ]
+}

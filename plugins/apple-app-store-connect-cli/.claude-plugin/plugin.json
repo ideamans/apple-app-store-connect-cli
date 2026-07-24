@@ -1,0 +1,13 @@
+{
+  "name": "apple-app-store-connect-cli",
+  "description": "Adds /asc-usage and /asc-install skills for the App Store Connect API: apps, versions, builds, TestFlight, in-app purchases, pricing, availability, screenshots and submission.",
+  "version": "0.5.0",
+  "author": {
+    "name": "Ideamans Inc.",
+    "email": "support@ideamans.com"
+  },
+  "homepage": "https://github.com/ideamans/apple-app-store-connect-cli",
+  "repository": "https://github.com/ideamans/apple-app-store-connect-cli",
+  "license": "MIT",
+  "keywords": ["apple", "app-store-connect", "ios", "testflight", "cli", "llm", "agent"]
+}

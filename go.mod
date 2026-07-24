@@ -10,6 +10,7 @@ require (
 )
 
 require (
+	github.com/ideamans/go-llm-cli-kit v0.1.1 // indirect
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
 	golang.org/x/image v0.44.0 // indirect
 )
