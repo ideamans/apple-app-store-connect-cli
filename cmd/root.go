@@ -16,6 +16,16 @@ var rootCmd = &cobra.Command{
 	SilenceErrors: true,
 }
 
+// PluginVersion is the released version of this CLI. It is also the version
+// recorded in plugins/apple-app-store-connect-cli/.claude-plugin/plugin.json —
+// a test enforces that the two agree, and the release workflow enforces that
+// both agree with the git tag. Bump it in the same commit as the tag.
+const PluginVersion = "0.5.0"
+
+// Root returns the assembled command tree without executing it, so the catalog
+// generator works from the same definition main dispatches on.
+func Root() *cobra.Command { return rootCmd }
+
 func Execute(version string) {
 	rootCmd.Version = version
 	if err := rootCmd.Execute(); err != nil {
